@@ -9,7 +9,7 @@ No wire editing or surface evolution is part of this slice yet.
 ## First interaction
 
 - one finger: orbit the surface
-- two fingers, move together: pan
+- two fingers, move together: pan in the current camera plane
 - two fingers, change separation: pinch zoom
 - lifting one finger from a two-finger gesture ends that gesture; a fresh touch
   begins the next gesture
@@ -31,15 +31,20 @@ Current first-frame set:
   single shader
 
 `Common.idric` contains only camera/ray/shading helpers shared by those files.
-The build emits one fragment shader per surface and writes
+The build discovers every `.idric` module containing a `glsles:fragment`
+export, emits one fragment shader per playable surface, and writes
 `app/src/main/assets/surfaces/index.txt`. The Android app picks one entry from
 that index at process start.
 
-The intended museum expansion rule is: add a source file, make its provenance
-and exact/approximate status explicit, add it to `scripts/build-shaders.sh`,
-and it automatically becomes another startup choice. Nodal approximations of
+The museum expansion rule is therefore file-driven: add a surface source with
+a fragment export and it automatically becomes another startup choice. Keep
+its provenance and exact/approximate status explicit. Nodal approximations of
 triply periodic surfaces must be labelled as approximations rather than called
 the exact minimal surface.
+
+This fragment path is not intended to force every museum surface into implicit
+ray marching. Parametric and Surface Evolver-backed entries can gain their own
+representations behind the same camera interaction as the renderer grows.
 
 ## Edriç -> GLSL dogfood path
 

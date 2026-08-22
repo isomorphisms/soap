@@ -29,8 +29,7 @@ rotate_y angle value =
 public export
 camera_origin : Double -> Double -> SVec 2 -> SVec 3
 camera_origin yaw pitch pan =
-  let orbit = rotate_y yaw (rotate_x pitch (vec3 0.0 0.0 4.5))
-   in vadd orbit (vec3 (x pan) (y pan) 0.0)
+  rotate_y yaw (rotate_x pitch (vec3 (x pan) (y pan) 4.5))
 
 public export
 camera_direction : SVec 2 -> Double -> Double -> Double -> Double -> SVec 3

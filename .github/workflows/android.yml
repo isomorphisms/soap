@@ -33,10 +33,16 @@ jobs:
         run: scripts/build-shaders.sh
 
       - name: Check generated surface catalog
+        shell: bash
         run: |
-          test -s app/src/main/assets/surfaces/catenoid.frag
-          test -s app/src/main/assets/surfaces/helicoid.frag
-          test "$(wc -l < app/src/main/assets/surfaces/index.txt)" -eq 2
+          set -euo pipefail
+          expected=$(grep -Fl '%export "glsles:fragment|' src/Surface/*.idric | wc -l)
+          actual=$(wc -l < app/src/main/assets/surfaces/index.txt)
+          test "$expected" -gt 0
+          test "$actual" -eq "$expected"
+          while IFS= read -r shader; do
+            test -s "app/src/main/assets/surfaces/$shader"
+          done < app/src/main/assets/surfaces/index.txt
           grep -q 'catenoid.frag' app/src/main/assets/surfaces/index.txt
           grep -q 'helicoid.frag' app/src/main/assets/surfaces/index.txt
 
