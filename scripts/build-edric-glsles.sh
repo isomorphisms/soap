@@ -14,6 +14,12 @@ if [ ! -f "$backend_root/backend.ipkg" ]; then
     exit 1
 fi
 
+# Edric owns a pinned private Chez under .tools/bin. Keep it visible not only
+# while the wrapper bootstraps the compiler, but also while this consumer runs
+# the resulting compiler directly to install its API and build code generators.
+PATH="$edric_root/.tools/bin:$PATH"
+export PATH
+
 "$edric_root/edric" bootstrap
 
 edric="$edric_root/bootstrap-build/bin/idris2"
