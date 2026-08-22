@@ -1,0 +1,81 @@
+module Surface.Helicoid
+
+import Shader.Source
+import Surface.Common
+
+%default total
+
+field : SVec 3 -> Double
+field point =
+  x point * sinF (z point) - y point * cosF (z point)
+
+gradient : SVec 3 -> SVec 3
+gradient point =
+  let angle = z point
+   in vec3 (sinF angle)
+           (0.0 - cosF angle)
+           (x point * cosF angle + y point * sinF angle)
+
+distance_estimate : SVec 3 -> Double
+distance_estimate point =
+  absF (field point) / maxF 0.0001 (length (gradient point))
+
+next_t : SVec 3 -> SVec 3 -> Double -> Double
+next_t origin direction distance =
+  let point = point_on_ray origin direction distance
+      step = clampF (0.70 * distance_estimate point) 0.008 0.30
+   in distance + step
+
+inside_frame : SVec 3 -> Bool
+inside_frame point =
+  if absF (z point) < 2.20
+     then square (x point) + square (y point) < 5.0
+     else False
+
+%export "glsles:fragment|v_ndc=in,u_aspect=uniform,u_yaw=uniform,u_pitch=uniform,u_zoom=uniform,u_pan=uniform"
+helicoid : SVec 2 -> Double -> Double -> Double -> Double -> SVec 2 -> SVec 4
+helicoid ndc aspect yaw pitch zoom pan =
+  let origin = camera_origin yaw pitch pan
+      direction = camera_direction ndc aspect yaw pitch zoom
+      t0 = 0.15
+      t1 = next_t origin direction t0
+      t2 = next_t origin direction t1
+      t3 = next_t origin direction t2
+      t4 = next_t origin direction t3
+      t5 = next_t origin direction t4
+      t6 = next_t origin direction t5
+      t7 = next_t origin direction t6
+      t8 = next_t origin direction t7
+      t9 = next_t origin direction t8
+      t10 = next_t origin direction t9
+      t11 = next_t origin direction t10
+      t12 = next_t origin direction t11
+      t13 = next_t origin direction t12
+      t14 = next_t origin direction t13
+      t15 = next_t origin direction t14
+      t16 = next_t origin direction t15
+      t17 = next_t origin direction t16
+      t18 = next_t origin direction t17
+      t19 = next_t origin direction t18
+      t20 = next_t origin direction t19
+      t21 = next_t origin direction t20
+      t22 = next_t origin direction t21
+      t23 = next_t origin direction t22
+      t24 = next_t origin direction t23
+      t25 = next_t origin direction t24
+      t26 = next_t origin direction t25
+      t27 = next_t origin direction t26
+      t28 = next_t origin direction t27
+      point = point_on_ray origin direction t28
+      close = distance_estimate point < 0.022
+      in_range = t28 < 9.0
+   in if close
+         then if in_range
+                 then if inside_frame point
+                         then soap_colour point (normalize (gradient point)) direction
+                         else background ndc
+                 else background ndc
+         else background ndc
+
+main : IO ()
+main = pure ()
