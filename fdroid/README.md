@@ -1,11 +1,11 @@
 # F-Droid release path
 
-The Android project can produce the unsigned release APK F-Droid expects from public source and standard Android build inputs.
+The upstream F-Droid validation build starts from the public repository and regenerates the Android surface shaders from pinned public Idriç/compiler sources before building the unsigned release APK.
 
 1. Keep `versionCode` and `versionName` in `app/build.gradle.kts` equal to the tagged public release.
-2. Keep the normal Edriç/shader-generator CI green so the checked GLSL ES surface artifacts remain reproducible from `src/Surface/`.
-3. Run the `F-Droid release build` workflow; it checks the source/artifact catalog, builds `assembleRelease`, verifies package identity and all three native ABIs, and retains the unsigned APK.
+2. Keep the pinned `EDRIC_REF` and `SHADER_BACKEND_REF` in `.github/workflows/fdroid-build.yml` fixed for a release and update them deliberately.
+3. Run the `F-Droid release build` workflow; it regenerates all playable surfaces, builds `assembleRelease`, verifies package identity and all three native ABIs, and retains the unsigned APK.
 4. Tag the exact release commit `v<versionName>`.
-5. Replace `FULL_COMMIT_HASH` in the metadata template with that commit and submit it as `metadata/org.isomorphisms.soap.yml` to fdroiddata.
+5. Before submitting the fdroiddata recipe, represent the same two pinned source dependencies through F-Droid's source-preparation mechanism rather than relying on network access during the sandboxed Gradle build.
 
-F-Droid rebuilds and signs the application itself. The upstream unsigned APK is only a reproducibility gate.
+The YAML beside this file is an upstream metadata template, not a claim that fdroiddata already has source-library definitions for Idriç and the shader backend. F-Droid itself must be able to acquire those exact public source commits during source preparation.

@@ -8,7 +8,7 @@ The repository's Surface Evolver reference material is upstream work with its ow
 
 ## Idriç and shader backend
 
-The playable surface definitions under `src/Surface/` are maintained as Idriç source. The checked GLSL ES files under `app/src/main/assets/surfaces/` are generated artifacts used by the Android build. Existing CI regenerates them through Idriç and the shader backend; the F-Droid Android build consumes the checked source artifacts without fetching those compiler repositories.
+The playable surface definitions under `src/Surface/` are maintained as Idriç source. The F-Droid validation workflow checks out exact public commits of `isomorphisms/Idric` and `isomorphisms/idris-shader-backend`, regenerates the GLSL ES files, and then builds the Android release. Those compiler repositories retain their own license terms.
 
 ## Platform and toolchain
 

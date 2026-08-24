@@ -6,6 +6,8 @@ on:
       - '.github/workflows/fdroid-build.yml'
       - 'app/**'
       - 'src/Surface/**'
+      - 'scripts/build-edric-glsles.sh'
+      - 'scripts/build-shaders.sh'
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
       - 'fdroid/**'
@@ -20,12 +22,52 @@ on:
 permissions:
   contents: read
 
+env:
+  EDRIC_REF: 61970be77769f607cca8650bf424c0f0b22ddee7
+  SHADER_BACKEND_REF: 7876b79058d6f59711151a21697369c1cf72df2f
+
 jobs:
   release-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check out pinned Idriç source
+        uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/Idric
+          ref: ${{ env.EDRIC_REF }}
+          path: deps/Idric
+
+      - name: Check out pinned shader backend source
+        uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/idris-shader-backend
+          ref: ${{ env.SHADER_BACKEND_REF }}
+          path: deps/idris-shader-backend
+
+      - name: Install Edriç host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential libgmp-dev libffi-dev
+
+      - name: Generate GLSL ES surfaces from Idriç source
+        run: |
+          scripts/build-edric-glsles.sh
+          scripts/build-shaders.sh
+
+      - name: Verify generated surface catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=$(grep -Fl '%export "glsles:fragment|' src/Surface/*.idric | wc -l)
+          actual=$(wc -l < app/src/main/assets/surfaces/index.txt)
+          test "$expected" -gt 0
+          test "$actual" -eq "$expected"
+          while IFS= read -r shader; do
+            test -s "app/src/main/assets/surfaces/$shader"
+          done < app/src/main/assets/surfaces/index.txt
 
       - uses: actions/setup-java@v4
         with:
@@ -40,18 +82,6 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-
-      - name: Check checked surface payload
-        shell: bash
-        run: |
-          set -euo pipefail
-          expected=$(grep -Fl '%export "glsles:fragment|' src/Surface/*.idric | wc -l)
-          actual=$(wc -l < app/src/main/assets/surfaces/index.txt)
-          test "$expected" -gt 0
-          test "$actual" -eq "$expected"
-          while IFS= read -r shader; do
-            test -s "app/src/main/assets/surfaces/$shader"
-          done < app/src/main/assets/surfaces/index.txt
 
       - name: Build unsigned release APK
         run: gradle --no-daemon :app:assembleRelease

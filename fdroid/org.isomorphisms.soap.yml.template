@@ -7,17 +7,25 @@ IssueTracker: https://github.com/isomorphisms/soap/issues
 RepoType: git
 Repo: https://github.com/isomorphisms/soap.git
 
+# The upstream release gate is source-reproducible and pins these dependencies:
+#   Idriç: 61970be77769f607cca8650bf424c0f0b22ddee7
+#   idris-shader-backend: 7876b79058d6f59711151a21697369c1cf72df2f
+# The eventual fdroiddata recipe must acquire those commits during F-Droid
+# source preparation and place them at deps/Idric and deps/idris-shader-backend
+# before running scripts/build-edric-glsles.sh and scripts/build-shaders.sh.
 Builds:
   - versionName: 0.0.1
     versionCode: 1
     commit: FULL_COMMIT_HASH
+    disable: Needs fdroiddata source-dependency wiring for pinned Idric compiler sources
     ndk: 29.0.14206865
     prebuild:
-      - sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1"
+      - scripts/build-edric-glsles.sh
+      - scripts/build-shaders.sh
     gradle:
       - yes
 
-AutoUpdateMode: Version
+AutoUpdateMode: None
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
 CurrentVersion: 0.0.1
 CurrentVersionCode: 1
