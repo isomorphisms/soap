@@ -1,0 +1,44 @@
+Categories:
+  - Science & Education
+License: GPL-3.0-or-later
+SourceCode: https://github.com/isomorphisms/soap
+IssueTracker: https://github.com/isomorphisms/soap/issues
+
+RepoType: git
+Repo: https://github.com/isomorphisms/soap.git
+
+Builds:
+  - versionName: 0.0.1
+    versionCode: 1
+    commit: FULL_COMMIT_HASH
+    timeout: 3600
+    srclibs:
+      - Idric@61970be77769f607cca8650bf424c0f0b22ddee7
+      - IdrisShaderBackend@7876b79058d6f59711151a21697369c1cf72df2f
+      - ChezScheme@v10.4.1
+    sudo:
+      - apt-get update
+      - apt-get install -y build-essential libgmp-dev libffi-dev
+    prebuild:
+      - mkdir -p deps
+      - rm -rf deps/Idric deps/idris-shader-backend
+      - ln -s $$Idric$$ deps/Idric
+      - ln -s $$IdrisShaderBackend$$ deps/idris-shader-backend
+    build:
+      - mkdir -p $$Idric$$/.tools/build/ChezScheme-10.4.1 $$Idric$$/.tools/bin
+      - pushd $$Idric$$/.tools/build/ChezScheme-10.4.1
+      - $$ChezScheme$$/configure --threads --disable-x11 --disable-curses --as-is --installprefix=$$Idric$$/.tools/chez-10.4.1
+      - make -j$(nproc)
+      - make install
+      - popd
+      - ln -sfn ../chez-10.4.1/bin/scheme $$Idric$$/.tools/bin/scheme
+      - scripts/build-edric-glsles.sh
+      - scripts/build-shaders.sh
+    ndk: 29.0.14206865
+    gradle:
+      - yes
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
+CurrentVersion: 0.0.1
+CurrentVersionCode: 1

@@ -1,0 +1,136 @@
+name: F-Droid release build
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fdroid-build.yml'
+      - 'app/**'
+      - 'src/Surface/**'
+      - 'scripts/build-edric-glsles.sh'
+      - 'scripts/build-shaders.sh'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'fdroid/**'
+      - 'fastlane/**'
+      - 'LICENSE'
+      - 'THIRD_PARTY.md'
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EDRIC_REF: 61970be77769f607cca8650bf424c0f0b22ddee7
+  SHADER_BACKEND_REF: 7876b79058d6f59711151a21697369c1cf72df2f
+  CHEZ_REF: v10.4.1
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out pinned Idriç source
+        uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/Idric
+          ref: ${{ env.EDRIC_REF }}
+          path: deps/Idric
+
+      - name: Check out pinned shader backend source
+        uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/idris-shader-backend
+          ref: ${{ env.SHADER_BACKEND_REF }}
+          path: deps/idris-shader-backend
+
+      - name: Check out pinned Chez Scheme source
+        uses: actions/checkout@v4
+        with:
+          repository: cisco/ChezScheme
+          ref: ${{ env.CHEZ_REF }}
+          path: deps/ChezScheme
+          submodules: recursive
+
+      - name: Install compiler build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential libgmp-dev libffi-dev
+
+      - name: Build pinned threaded Chez Scheme from source
+        shell: bash
+        run: |
+          set -euo pipefail
+          edric="$GITHUB_WORKSPACE/deps/Idric"
+          chez="$GITHUB_WORKSPACE/deps/ChezScheme"
+          build="$edric/.tools/build/ChezScheme-10.4.1"
+          prefix="$edric/.tools/chez-10.4.1"
+          mkdir -p "$build" "$edric/.tools/bin"
+          cd "$build"
+          "$chez/configure" \
+            --threads \
+            --disable-x11 \
+            --disable-curses \
+            --as-is \
+            --installprefix="$prefix"
+          make -j"$(nproc)"
+          make install
+          ln -sfn ../chez-10.4.1/bin/scheme "$edric/.tools/bin/scheme"
+          test "$(printf '(display (threaded?))\n(newline)\n' | "$edric/.tools/bin/scheme" --quiet | tail -n 1)" = '#t'
+
+      - name: Generate GLSL ES surfaces from Idriç source
+        run: |
+          scripts/build-edric-glsles.sh
+          scripts/build-shaders.sh
+
+      - name: Verify generated surface catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=$(grep -Fl '%export "glsles:fragment|' src/Surface/*.idric | wc -l)
+          actual=$(wc -l < app/src/main/assets/surfaces/index.txt)
+          test "$expected" -gt 0
+          test "$actual" -eq "$expected"
+          while IFS= read -r shader; do
+            test -s "app/src/main/assets/surfaces/$shader"
+          done < app/src/main/assets/surfaces/index.txt
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android build inputs
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Build unsigned release APK
+        run: gradle --no-daemon :app:assembleRelease
+
+      - name: Verify F-Droid release output
+        run: |
+          apk=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$apk"
+          unzip -t "$apk"
+          unzip -Z1 "$apk" > "$RUNNER_TEMP/soap-release-files.txt"
+          grep -Fxq lib/arm64-v8a/libsoap.so "$RUNNER_TEMP/soap-release-files.txt"
+          grep -Fxq lib/armeabi-v7a/libsoap.so "$RUNNER_TEMP/soap-release-files.txt"
+          grep -Fxq lib/x86_64/libsoap.so "$RUNNER_TEMP/soap-release-files.txt"
+          grep -Fq assets/surfaces/index.txt "$RUNNER_TEMP/soap-release-files.txt"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" > "$RUNNER_TEMP/soap-release-badging.txt"
+          grep -Fq "package: name='org.isomorphisms.soap' versionCode='1' versionName='0.0.1'" "$RUNNER_TEMP/soap-release-badging.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soap-fdroid-unsigned
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
