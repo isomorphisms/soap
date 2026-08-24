@@ -1,0 +1,3 @@
+Soap is a native Android viewer for mathematical minimal surfaces.
+
+The first release includes exact catenoid and helicoid surfaces, chooses a surface at startup, and renders it with OpenGL ES. One finger orbits the view; two fingers pan in the camera plane and pinch to zoom. Surface shaders are maintained from Idriç source and checked into the Android build as GLSL ES artifacts.
