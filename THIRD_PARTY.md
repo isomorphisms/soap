@@ -8,7 +8,11 @@ The repository's Surface Evolver reference material is upstream work with its ow
 
 ## Idriç and shader backend
 
-The playable surface definitions under `src/Surface/` are maintained as Idriç source. The F-Droid validation workflow checks out exact public commits of `isomorphisms/Idric` and `isomorphisms/idris-shader-backend`, regenerates the GLSL ES files, and then builds the Android release. Those compiler repositories retain their own license terms.
+The playable surface definitions under `src/Surface/` are maintained as Idriç source. The F-Droid validation path uses exact public source revisions of `isomorphisms/Idric` and `isomorphisms/idris-shader-backend`, regenerates the GLSL ES files, and then builds the Android release. Those compiler repositories retain their own license terms.
+
+## Chez Scheme
+
+Idriç is bootstrapped with threaded Chez Scheme 10.4.1 built from the public Cisco Chez Scheme source tree and its pinned submodules. Chez Scheme and its subprojects retain their upstream licenses; they are build tools and are not packaged in the Android application.
 
 ## Platform and toolchain
 

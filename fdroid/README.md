@@ -1,11 +1,21 @@
 # F-Droid release path
 
-The upstream F-Droid validation build starts from the public repository and regenerates the Android surface shaders from pinned public Idriç/compiler sources before building the unsigned release APK.
+The Android release can be rebuilt from public source without downloading compiler binaries during the build.
+
+## Upstream gate
+
+The `F-Droid release build` workflow checks out exact Idriç and shader-backend revisions plus the Chez Scheme 10.4.1 source tree and its submodules. It builds threaded Chez from source, bootstraps Idriç with that local executable, regenerates every GLSL ES surface, builds the unsigned Android release, and verifies package/version plus all three native ABIs.
+
+## fdroiddata submission
+
+The metadata template uses F-Droid `srclibs` for the same three source trees. Copy the three templates under `fdroid/srclibs/` into `fdroiddata/srclibs/` when submitting the app (unless equivalent srclib entries already exist), and copy `org.isomorphisms.soap.yml.template` to `fdroiddata/metadata/org.isomorphisms.soap.yml`.
+
+Before submission:
 
 1. Keep `versionCode` and `versionName` in `app/build.gradle.kts` equal to the tagged public release.
-2. Keep the pinned `EDRIC_REF` and `SHADER_BACKEND_REF` in `.github/workflows/fdroid-build.yml` fixed for a release and update them deliberately.
-3. Run the `F-Droid release build` workflow; it regenerates all playable surfaces, builds `assembleRelease`, verifies package identity and all three native ABIs, and retains the unsigned APK.
-4. Tag the exact release commit `v<versionName>`.
-5. Before submitting the fdroiddata recipe, represent the same two pinned source dependencies through F-Droid's source-preparation mechanism rather than relying on network access during the sandboxed Gradle build.
+2. Run the upstream F-Droid release gate successfully.
+3. Tag the exact integrated release commit `v<versionName>`.
+4. Replace `FULL_COMMIT_HASH` in the metadata template with that 40-character commit SHA.
+5. Run `fdroid lint org.isomorphisms.soap` and `fdroid build org.isomorphisms.soap` against the proposed fdroiddata files.
 
-The YAML beside this file is an upstream metadata template, not a claim that fdroiddata already has source-library definitions for Idriç and the shader backend. F-Droid itself must be able to acquire those exact public source commits during source preparation.
+F-Droid rebuilds and signs the application itself. The upstream unsigned APK is only a reproducibility gate.

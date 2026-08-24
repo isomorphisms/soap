@@ -25,11 +25,12 @@ permissions:
 env:
   EDRIC_REF: 61970be77769f607cca8650bf424c0f0b22ddee7
   SHADER_BACKEND_REF: 7876b79058d6f59711151a21697369c1cf72df2f
+  CHEZ_REF: v10.4.1
 
 jobs:
   release-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -47,10 +48,39 @@ jobs:
           ref: ${{ env.SHADER_BACKEND_REF }}
           path: deps/idris-shader-backend
 
-      - name: Install Edriç host dependencies
+      - name: Check out pinned Chez Scheme source
+        uses: actions/checkout@v4
+        with:
+          repository: cisco/ChezScheme
+          ref: ${{ env.CHEZ_REF }}
+          path: deps/ChezScheme
+          submodules: recursive
+
+      - name: Install compiler build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install --yes build-essential libgmp-dev libffi-dev
+
+      - name: Build pinned threaded Chez Scheme from source
+        shell: bash
+        run: |
+          set -euo pipefail
+          edric="$GITHUB_WORKSPACE/deps/Idric"
+          chez="$GITHUB_WORKSPACE/deps/ChezScheme"
+          build="$edric/.tools/build/ChezScheme-10.4.1"
+          prefix="$edric/.tools/chez-10.4.1"
+          mkdir -p "$build" "$edric/.tools/bin"
+          cd "$build"
+          "$chez/configure" \
+            --threads \
+            --disable-x11 \
+            --disable-curses \
+            --as-is \
+            --installprefix="$prefix"
+          make -j"$(nproc)"
+          make install
+          ln -sfn ../chez-10.4.1/bin/scheme "$edric/.tools/bin/scheme"
+          test "$(printf '(display (threaded?))\n(newline)\n' | "$edric/.tools/bin/scheme" --quiet | tail -n 1)" = '#t'
 
       - name: Generate GLSL ES surfaces from Idriç source
         run: |
