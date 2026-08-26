@@ -14,7 +14,7 @@ Builds:
     timeout: 3600
     srclibs:
       - Idric@61970be77769f607cca8650bf424c0f0b22ddee7
-      - IdrisShaderBackend@7876b79058d6f59711151a21697369c1cf72df2f
+      - IdrisShaderBackend@66214e3da0443fe4887062549e9ef5810c586dd7
       - ChezScheme@v10.4.1
     sudo:
       - apt-get update
