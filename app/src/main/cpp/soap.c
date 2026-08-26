@@ -21,7 +21,7 @@
 
 static const char *VERTEX_SHADER =
     "#version 300 es\n"
-    "precision highp float;\n"
+    "precision mediump float;\n"
     "layout(location = 0) in vec2 a_position;\n"
     "out vec2 v_ndc;\n"
     "void main() {\n"
@@ -325,6 +325,20 @@ static bool create_renderer(struct engine *engine) {
     glDisable(GL_CULL_FACE);
     glDisable(GL_BLEND);
 
+    GLint mediump_range[2] = {0, 0};
+    GLint mediump_precision = 0;
+    glGetShaderPrecisionFormat(
+        GL_FRAGMENT_SHADER,
+        GL_MEDIUM_FLOAT,
+        mediump_range,
+        &mediump_precision
+    );
+    LOGI(
+        "fragment mediump range=%d..%d precision=%d",
+        mediump_range[0],
+        mediump_range[1],
+        mediump_precision
+    );
     LOGI(
         "renderer ready: GL_VERSION=%s GL_RENDERER=%s surface=%s",
         glGetString(GL_VERSION),

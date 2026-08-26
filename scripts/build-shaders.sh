@@ -54,6 +54,7 @@ for surface in "$repo_root"/src/Surface/*.idric; do
     (
         cd "$source_root"
         "$compiler" --cg glsles \
+            --directive float-width=f16 \
             --source-dir . \
             --output-dir "$output" \
             "Surface/$file" \
@@ -71,6 +72,11 @@ fi
 
 for shader in "$output"/*.frag; do
     grep -q '#version 300 es' "$shader"
+    grep -q 'precision mediump float;' "$shader"
+    if grep -q 'precision highp float;' "$shader"; then
+        echo "F16 shader unexpectedly retained highp float: $shader" >&2
+        exit 1
+    fi
     grep -q 'uniform float u_yaw;' "$shader"
     grep -q 'uniform float u_pitch;' "$shader"
     grep -q 'uniform float u_zoom;' "$shader"

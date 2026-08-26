@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: isomorphisms/idris-shader-backend
+          ref: 66214e3da0443fe4887062549e9ef5810c586dd7
           path: deps/idris-shader-backend
 
       - name: Install Edric host dependencies
@@ -29,10 +30,10 @@ jobs:
       - name: Build GLSL backend with Edric
         run: scripts/build-edric-glsles.sh
 
-      - name: Compile .idric surfaces to GLSL ES
+      - name: Compile .idric surfaces to GLSL ES as F16
         run: scripts/build-shaders.sh
 
-      - name: Check generated surface catalog
+      - name: Check generated F16 surface catalog
         shell: bash
         run: |
           set -euo pipefail
@@ -41,7 +42,10 @@ jobs:
           test "$expected" -gt 0
           test "$actual" -eq "$expected"
           while IFS= read -r shader; do
-            test -s "app/src/main/assets/surfaces/$shader"
+            path="app/src/main/assets/surfaces/$shader"
+            test -s "$path"
+            grep -q 'precision mediump float;' "$path"
+            ! grep -q 'precision highp float;' "$path"
           done < app/src/main/assets/surfaces/index.txt
           grep -q 'catenoid.frag' app/src/main/assets/surfaces/index.txt
           grep -q 'helicoid.frag' app/src/main/assets/surfaces/index.txt
@@ -134,6 +138,7 @@ jobs:
             adb shell pidof -s org.isomorphisms.soap | tr -d '\r' | grep -Eq '^[0-9]+$'
             grep -q 'selected surface surfaces/' soap.log
             grep -q 'first frame center rgba=' soap.log
+            grep -q 'fragment mediump range=' soap.log
             ! grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed|display initialization failed' soap.log
 
       - uses: actions/upload-artifact@v4

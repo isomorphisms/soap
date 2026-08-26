@@ -24,7 +24,7 @@ permissions:
 
 env:
   EDRIC_REF: 61970be77769f607cca8650bf424c0f0b22ddee7
-  SHADER_BACKEND_REF: 7876b79058d6f59711151a21697369c1cf72df2f
+  SHADER_BACKEND_REF: 66214e3da0443fe4887062549e9ef5810c586dd7
   CHEZ_REF: v10.4.1
 
 jobs:
@@ -41,7 +41,7 @@ jobs:
           ref: ${{ env.EDRIC_REF }}
           path: deps/Idric
 
-      - name: Check out pinned shader backend source
+      - name: Check out pinned F16 shader backend source
         uses: actions/checkout@v4
         with:
           repository: isomorphisms/idris-shader-backend
@@ -82,12 +82,12 @@ jobs:
           ln -sfn ../chez-10.4.1/bin/scheme "$edric/.tools/bin/scheme"
           test "$(printf '(display (threaded?))\n(newline)\n' | "$edric/.tools/bin/scheme" --quiet | tail -n 1)" = '#t'
 
-      - name: Generate GLSL ES surfaces from Idriç source
+      - name: Generate F16 GLSL ES surfaces from Idriç source
         run: |
           scripts/build-edric-glsles.sh
           scripts/build-shaders.sh
 
-      - name: Verify generated surface catalog
+      - name: Verify generated F16 surface catalog
         shell: bash
         run: |
           set -euo pipefail
@@ -96,7 +96,10 @@ jobs:
           test "$expected" -gt 0
           test "$actual" -eq "$expected"
           while IFS= read -r shader; do
-            test -s "app/src/main/assets/surfaces/$shader"
+            path="app/src/main/assets/surfaces/$shader"
+            test -s "$path"
+            grep -q 'precision mediump float;' "$path"
+            ! grep -q 'precision highp float;' "$path"
           done < app/src/main/assets/surfaces/index.txt
 
       - uses: actions/setup-java@v4
