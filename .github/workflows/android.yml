@@ -1,0 +1,147 @@
+name: Edric surface player
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/Idric
+          path: deps/Idric
+
+      - uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/idris-shader-backend
+          path: deps/idris-shader-backend
+
+      - name: Install Edric host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgmp-dev libffi-dev
+
+      - name: Build GLSL backend with Edric
+        run: scripts/build-edric-glsles.sh
+
+      - name: Compile .idric surfaces to GLSL ES
+        run: scripts/build-shaders.sh
+
+      - name: Check generated surface catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=$(grep -Fl '%export "glsles:fragment|' src/Surface/*.idric | wc -l)
+          actual=$(wc -l < app/src/main/assets/surfaces/index.txt)
+          test "$expected" -gt 0
+          test "$actual" -eq "$expected"
+          while IFS= read -r shader; do
+            test -s "app/src/main/assets/surfaces/$shader"
+          done < app/src/main/assets/surfaces/index.txt
+          grep -q 'catenoid.frag' app/src/main/assets/surfaces/index.txt
+          grep -q 'helicoid.frag' app/src/main/assets/surfaces/index.txt
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android toolchain
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" \
+            "ndk;29.0.14206865" "cmake;3.22.1"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Build debug APK
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Verify APK payload
+        run: |
+          unzip -l app/build/outputs/apk/debug/app-debug.apk > /tmp/soap-apk
+          grep -q 'assets/surfaces/catenoid.frag' /tmp/soap-apk
+          grep -q 'assets/surfaces/helicoid.frag' /tmp/soap-apk
+          grep -q 'assets/surfaces/index.txt' /tmp/soap-apk
+          grep -q 'lib/arm64-v8a/libsoap.so' /tmp/soap-apk
+          grep -q 'lib/armeabi-v7a/libsoap.so' /tmp/soap-apk
+          grep -q 'lib/x86_64/libsoap.so' /tmp/soap-apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soap-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  emulate:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: soap-debug-apk
+          path: artifacts
+
+      - name: Enable KVM permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Smoke-test native gestures
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: default
+          arch: x86_64
+          profile: medium_phone
+          ram-size: 2048M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -no-metrics
+          script: |
+            adb shell wm size 720x1280
+            adb shell wm density 320
+            adb install -r artifacts/app-debug.apk
+            adb logcat -c
+            adb shell am start -W -a android.intent.action.MAIN \
+              -c android.intent.category.LAUNCHER \
+              -n org.isomorphisms.soap/android.app.NativeActivity
+            sleep 4
+            adb exec-out screencap -p > soap-before.png
+            adb shell input swipe 180 500 430 650 400
+            sleep 1
+            adb shell input swipe 220 500 520 500 300
+            sleep 2
+            adb logcat -d > soap.log
+            adb exec-out screencap -p > soap-after.png
+            adb shell pidof -s org.isomorphisms.soap | tr -d '\r' | grep -Eq '^[0-9]+$'
+            grep -q 'selected surface surfaces/' soap.log
+            grep -q 'first frame center rgba=' soap.log
+            ! grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed|display initialization failed' soap.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: soap-emulator-evidence
+          path: |
+            soap.log
+            soap-before.png
+            soap-after.png
+          if-no-files-found: warn

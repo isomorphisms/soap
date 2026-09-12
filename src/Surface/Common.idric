@@ -1,0 +1,63 @@
+module Surface.Common
+
+import Shader.Source
+
+%default total
+
+public export
+square : Double -> Double
+square value = value * value
+
+public export
+rotate_x : Double -> SVec 3 -> SVec 3
+rotate_x angle value =
+  let cosine = cosF angle
+      sine = sinF angle
+      vy = y value * cosine - z value * sine
+      vz = y value * sine + z value * cosine
+   in vec3 (x value) vy vz
+
+public export
+rotate_y : Double -> SVec 3 -> SVec 3
+rotate_y angle value =
+  let cosine = cosF angle
+      sine = sinF angle
+      vx = x value * cosine + z value * sine
+      vz = (0.0 - x value) * sine + z value * cosine
+   in vec3 vx (y value) vz
+
+public export
+camera_origin : Double -> Double -> SVec 2 -> SVec 3
+camera_origin yaw pitch pan =
+  rotate_y yaw (rotate_x pitch (vec3 (x pan) (y pan) 4.5))
+
+public export
+camera_direction : SVec 2 -> Double -> Double -> Double -> Double -> SVec 3
+camera_direction ndc aspect yaw pitch zoom =
+  let local = normalize (vec3 (x ndc * aspect / zoom) (y ndc / zoom) (0.0 - 1.0))
+   in normalize (rotate_y yaw (rotate_x pitch local))
+
+public export
+point_on_ray : SVec 3 -> SVec 3 -> Double -> SVec 3
+point_on_ray origin direction distance =
+  vadd origin (scale distance direction)
+
+public export
+soap_colour : SVec 3 -> SVec 3 -> SVec 3 -> SVec 4
+soap_colour point normal direction =
+  let view = normalize (scale (0.0 - 1.0) direction)
+      facing = absF (dot normal view)
+      light = normalize (vec3 0.35 0.55 1.0)
+      diffuse = maxF 0.0 (dot normal light)
+      phase = 10.0 * (1.0 - facing) + 1.4 * z point
+      red = 0.52 + 0.28 * sinF phase
+      green = 0.58 + 0.27 * sinF (phase + 2.09439510239)
+      blue = 0.70 + 0.24 * sinF (phase + 4.18879020479)
+      shade = 0.48 + 0.52 * diffuse
+   in vec4 (red * shade) (green * shade) (blue * shade) 1.0
+
+public export
+background : SVec 2 -> SVec 4
+background ndc =
+  let glow = clampF (0.13 - 0.08 * length ndc) 0.025 0.13
+   in vec4 (0.40 * glow) (0.62 * glow) glow 1.0
